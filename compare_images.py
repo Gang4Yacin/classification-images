@@ -5,9 +5,24 @@ from PIL import Image
 import imagehash
 from io import BytesIO
 
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+# Configure a session with retries for resilience
+session = requests.Session()
+retries = Retry(
+    total=3,
+    backoff_factor=1,
+    status_forcelist=[429, 500, 502, 503, 504],
+    raise_on_status=False
+)
+session.mount('https://', HTTPAdapter(max_retries=retries))
+session.mount('http://', HTTPAdapter(max_retries=retries))
+
 def download_image(url):
     try:
-        response = requests.get(url, timeout=10)
+        # Increased timeout to 20s and using session with retries
+        response = session.get(url, timeout=20)
         response.raise_for_status()
         return Image.open(BytesIO(response.content))
     except Exception as e:

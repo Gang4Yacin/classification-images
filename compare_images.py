@@ -30,6 +30,10 @@ def calculate_similarity(img1, img2):
     return similarity * 100
 
 def process_users(data):
+    if isinstance(data, dict):
+        # Handle single user object
+        data = [data]
+    
     results = []
     
     for user in data:

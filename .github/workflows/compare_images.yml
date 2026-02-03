@@ -31,9 +31,11 @@ jobs:
 
       - name: Run image similarity comparison
         id: compare
+        env:
+          USER_DATA: ${{ github.event.inputs.user_data }}
         run: |
-          # Use a temporary file to handle potentially large JSON input
-          echo '${{ github.event.inputs.user_data }}' > input.json
+          # Use an environment variable to avoid shell injection and quoting issues
+          echo "$USER_DATA" > input.json
           python compare_images.py "$(cat input.json)" > results.json
           
           # Show results in the logs

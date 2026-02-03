@@ -43,45 +43,53 @@ def process_users(data):
         
         user_matches = []
         
-        # Pre-download metaad previews to avoid re-downloading for each creative
+        # 1. Pre-download metaad previews
         preview_images = []
         for p in metaad_previews:
             img = download_image(p["url"])
             if img:
                 preview_images.append({"id": p["id"], "url": p["url"], "image": img})
         
+        # 2. Pre-download all ad creative variations
+        creative_variations = []
         for creative in ad_creative_images:
             creative_id = creative.get("id")
-            creative_urls = creative.get("urls", {})
+            urls_map = creative.get("urls", {})
             
-            # Support both old format ('url') and new format ('urls')
-            if "url" in creative and not creative_urls:
-                creative_urls = {"original": creative["url"]}
+            # Support old format
+            if "url" in creative and not urls_map:
+                urls_map = {"original": creative["url"]}
             
-            best_overall_match = None
+            for url_key, url_value in urls_map.items():
+                img = download_image(url_value)
+                if img:
+                    creative_variations.append({
+                        "id": creative_id,
+                        "url": url_value,
+                        "url_key": url_key,
+                        "image": img
+                    })
+        
+        # 3. Flip logic: For each preview, find the best creative variation
+        for preview in preview_images:
+            best_match = None
             max_sim = -1.0
             
-            # Iterate through each version of the creative image (original, 1:1, 4:5, etc.)
-            for url_key, url_value in creative_urls.items():
-                creative_img = download_image(url_value)
-                if not creative_img:
-                    continue
-                
-                for preview in preview_images:
-                    sim = calculate_similarity(creative_img, preview["image"])
-                    if sim > max_sim:
-                        max_sim = sim
-                        best_overall_match = {
-                            "ad_creative_image_id": creative_id,
-                            "ad_creative_image_url": url_value,
-                            "ad_creative_image_url_key": url_key,
-                            "metaad_preview_id": preview["id"],
-                            "metaad_preview_url": preview["url"],
-                            "similarity_percentage": round(sim, 2)
-                        }
+            for variant in creative_variations:
+                sim = calculate_similarity(variant["image"], preview["image"])
+                if sim > max_sim:
+                    max_sim = sim
+                    best_match = {
+                        "metaad_preview_id": preview["id"],
+                        "metaad_preview_url": preview["url"],
+                        "ad_creative_image_id": variant["id"],
+                        "ad_creative_image_url": variant["url"],
+                        "ad_creative_image_url_key": variant["url_key"],
+                        "similarity_percentage": round(sim, 2)
+                    }
             
-            if best_overall_match:
-                user_matches.append(best_overall_match)
+            if best_match:
+                user_matches.append(best_match)
         
         results.append({
             "user_id": user_id,

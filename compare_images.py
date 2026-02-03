@@ -51,27 +51,37 @@ def process_users(data):
                 preview_images.append({"id": p["id"], "url": p["url"], "image": img})
         
         for creative in ad_creative_images:
-            creative_img = download_image(creative["url"])
-            if not creative_img:
-                continue
+            creative_id = creative.get("id")
+            creative_urls = creative.get("urls", {})
             
-            best_match = None
+            # Support both old format ('url') and new format ('urls')
+            if "url" in creative and not creative_urls:
+                creative_urls = {"original": creative["url"]}
+            
+            best_overall_match = None
             max_sim = -1.0
             
-            for preview in preview_images:
-                sim = calculate_similarity(creative_img, preview["image"])
-                if sim > max_sim:
-                    max_sim = sim
-                    best_match = preview
+            # Iterate through each version of the creative image (original, 1:1, 4:5, etc.)
+            for url_key, url_value in creative_urls.items():
+                creative_img = download_image(url_value)
+                if not creative_img:
+                    continue
+                
+                for preview in preview_images:
+                    sim = calculate_similarity(creative_img, preview["image"])
+                    if sim > max_sim:
+                        max_sim = sim
+                        best_overall_match = {
+                            "ad_creative_image_id": creative_id,
+                            "ad_creative_image_url": url_value,
+                            "ad_creative_image_url_key": url_key,
+                            "metaad_preview_id": preview["id"],
+                            "metaad_preview_url": preview["url"],
+                            "similarity_percentage": round(sim, 2)
+                        }
             
-            if best_match:
-                user_matches.append({
-                    "ad_creative_image_id": creative["id"],
-                    "ad_creative_image_url": creative["url"],
-                    "metaad_preview_id": best_match["id"],
-                    "metaad_preview_url": best_match["url"],
-                    "similarity_percentage": round(max_sim, 2)
-                })
+            if best_overall_match:
+                user_matches.append(best_overall_match)
         
         results.append({
             "user_id": user_id,

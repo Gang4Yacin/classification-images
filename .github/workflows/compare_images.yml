@@ -7,6 +7,10 @@ on:
         description: 'JSON list of users with images to compare'
         required: true
         type: string
+      resumeUrl:
+        description: 'n8n resume URL (automatically added by n8n)'
+        required: false
+        type: string
 
 jobs:
   compare-images:
